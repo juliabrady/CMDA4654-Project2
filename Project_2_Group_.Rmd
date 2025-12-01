@@ -1,0 +1,54 @@
+---
+title: "Project_2_Practice"
+author: "Priya Bhat"
+date: "2025-12-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# LARs using iris dataset
+
+## Libraries and packages
+```{r}
+#install.packages("lars")
+library(lars)
+data(iris)
+
+```
+
+## Assigning values
+```{r}
+y <- iris$Sepal.Length
+
+x <- as.matrix(iris[, c("Sepal.Width", "Petal.Length", "Petal.Width")])
+
+dim(x)
+head(x)
+```
+#LARS
+```{r}
+lars_model <- lars(x, y, type = "lar")
+lars_model
+
+#plot
+plot(lars_model)
+legend("topleft", legend = colnames(x), col = 1:3, lty = 1)
+```
+## Choosing the best model
+```{r}
+set.seed(123)
+
+cv_model <- cv.lars(x, y, type = "lar")
+
+plot(cv_model$index, cv_model$cv, type = "b",
+     xlab = "Fraction of L1 norm",
+     ylab = "Cross Validation Error",
+     main = "Cross Validation for LARS")
+
+```
+
+
