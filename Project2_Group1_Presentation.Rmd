@@ -1,0 +1,479 @@
+---
+title: "CMDA 4654 Project 2"
+author: "Julia Brady, Priya Bhat, Mason Colt, Matt Nissen, Dylan Fair, Jamal Mani"
+date: "2025-11-22"
+output:
+  ioslides_presentation:
+    highlight: kate
+  slidy_presentation:
+    highlight: kate
+  beamer_presentation:
+    fonttheme: professionalfonts
+    highlight: kate
+    theme: Rochester
+classoption: aspectratio=169
+fontsize: 9pt
+header-includes:
+- \definecolor{VTmaroon}{HTML}{861F41}
+- \usecolortheme[named=VTmaroon]{structure}
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(ggplot2)
+library(plotly)
+knitr::opts_chunk$set(echo = FALSE)
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  paste0("\n \\", "footnotesize","\n\n", x, "\n\n \\normalsize")
+})
+```
+
+## What is Least Angle Regression?
+
+- A regression algorithm for high-dimensional data  
+- Builds the model incrementally like forward selection  
+- But **less greedy** and more **statistically efficient**  
+- Computes the entire **LASSO path** with a small modification  
+- Produces smooth, piecewise-linear coefficient trajectories  
+
+
+
+## Why Do We Need LARS?
+
+**Forward Selection Problems:**
+
+- Commits too strongly to the first chosen variable  
+- Struggles with correlated predictors  
+- Greedy -> unstable -> can miss important variables
+
+**LARS Fixes This:**
+
+- Takes controlled, geometric steps  
+- Adjusts direction whenever correlations change  
+- Never "overcommits" too early  
+- Fair to correlated predictors
+
+
+
+## Key Idea
+
+> LARS moves in the direction that forms **equal angles** with all predictors most correlated with the residual.
+
+- A balanced "least angle" update  
+- A clear sequence of variable entry  
+- A smooth coefficient path  
+
+
+
+## Setup and Notation
+
+We model:
+
+\[
+\mu = X\beta
+\]
+
+At any step:
+
+- Residual:  
+\[
+r = y - X\beta
+\]
+
+- Correlations with residual:
+\[
+c_j = x_j^\top r
+\]
+
+- Active set:
+\[
+A = \{ j : |c_j| = \max_k |c_k| \}
+\]
+
+
+
+## The Equiangular Direction
+
+To update the model, LARS finds a vector \(u_A\) such that:
+
+- Every active predictor makes the **same angle** with \(u_A\)  
+- Each active predictor has the **same correlation** with the update
+
+Mathematically:
+
+\[
+u_A = X_A w_A, \quad 
+w_A = \frac{G_A^{-1} 1_A}{\sqrt{1_A^\top G_A^{-1}1_A}}
+\]
+
+- \(X_A\) is the matrix of active predictors  
+- \(G_A = X_A^\top X_A\)  
+- \(1_A\) is a vector of ones  
+
+This ensures a **balanced movement** among active predictors.
+
+
+
+## Updating the Model
+
+The fitted values update via:
+
+\[
+\mu \leftarrow \mu + \gamma\, u_A
+\]
+
+Where the step size \(\gamma\) is the **largest value** such that:
+
+- All active predictors remain tied  
+- A new predictor reaches the same correlation level
+
+Thus the active set expands exactly when it should.
+
+
+
+## Geometric Picture
+```{r echo = FALSE}
+# Clean conceptual LARS path for 3 predictors:
+#   Segment 1: Predictor 1 -> movement in 1D (beta1)
+#   Segment 2: Predictors 1 & 2 -> movement in 2D plane (beta1, beta2)
+#   Segment 3: Predictors 1, 2 & 3 -> movement in 3D (beta1, beta2, beta3)
+
+lars_path <- data.frame(
+  beta1 = c(0, 0.6, 1.0, 1.55),
+  beta2 = c(0, 0.0, 0.4, 1.10),
+  beta3 = c(0, 0.0, 0.0, 0.90),
+  label = c(
+    "Origin (0 predictors)",
+    "Predictor 1 active (1D)",
+    "Predictor 2 active (2D)",
+    "Predictor 3 active -> OLS direction (3D)"
+  ),
+  segment = c("1D", "1D", "2D", "3D")
+)
+
+# Colors for subspaces
+seg_colors <- c("1D" = "lightblue", "2D" = "steelblue", "3D" = "blue")
+
+# Build 3D interactive visualization
+
+plot_ly() %>%
+  
+  # 1D segment (Predictor 1 only)
+  add_trace(
+    data = lars_path[1:2, ],
+    x = ~beta1, y = ~beta2, z = ~beta3,
+    type = "scatter3d", mode = "lines+markers+text",
+    line = list(width = 6, color = seg_colors["1D"]),
+    marker = list(size = 4, color = seg_colors["1D"]),
+    name = "1D movement"
+  ) %>%
+  add_trace(  # label only the END of segment
+    data = lars_path[2, ],
+    x = ~beta1, y = ~beta2, z = ~beta3,
+    type = "scatter3d", mode = "text",
+    text = ~label, textposition = "top center",
+    showlegend = FALSE
+  ) %>%
+  
+  # 2D segment (Predictors 1 & 2)
+  add_trace(
+    data = lars_path[2:3, ],
+    x = ~beta1, y = ~beta2, z = ~beta3,
+    type = "scatter3d", mode = "lines+markers+text",
+    line = list(width = 6, color = seg_colors["2D"]),
+    marker = list(size = 4, color = seg_colors["2D"]),
+    name = "2D movement"
+  ) %>%
+  add_trace(  # label only the END of segment
+    data = lars_path[3, ],
+    x = ~beta1, y = ~beta2, z = ~beta3,
+    type = "scatter3d", mode = "text",
+    text = ~label, textposition = "top center",
+    showlegend = FALSE
+  ) %>%
+  
+  # 3D segment (Predictors 1, 2 & 3)
+  add_trace(
+    data = lars_path[3:4, ],
+    x = ~beta1, y = ~beta2, z = ~beta3,
+    type = "scatter3d", mode = "lines+markers+text",
+    line = list(width = 6, color = seg_colors["3D"]),
+    marker = list(size = 4, color = seg_colors["3D"]),
+    name = "3D movement"
+  ) %>%   
+  add_trace(  # final label
+    data = lars_path[4, ],
+    x = ~beta1, y = ~beta2, z = ~beta3,
+    type = "scatter3d", mode = "text",
+    text = ~label, textposition = "top center",
+    showlegend = FALSE
+  ) %>%
+  
+  
+  layout(
+    title = "Clean 3D Visualization of the LARS Path (3 Predictors)",
+    legend = list(orientation = "h"),
+    scene = list(
+      xaxis = list(title = "β₁"),
+      yaxis = list(title = "β₂"),
+      zaxis = list(title = "β₃")
+    )
+  )
+```
+
+
+
+## Intuition: What LARS Does
+
+1. Start with all coefficients = 0  
+2. Find the predictor most correlated with the response  
+3. Move toward it until another predictor becomes equally correlated  
+4. Turn and move along a direction splitting the angle between them  
+5. Repeat until all predictors enter  
+
+This movement is **piecewise-linear** and **geometrically optimal**.
+
+
+## Connection to LASSO
+
+LARS becomes the LASSO algorithm by adding:
+
+> If a coefficient would cross zero, **remove** that variable from the active set.
+
+This enforces the L1 constraint.
+
+LARS + zero-crossing rule = **Exact LASSO path**
+
+
+
+## When LARS is Appropriate
+
+- **High-dimensional data with many predictors**: Excellent for datasets where the number of predictors exceeds the number of observations ($p > n$).
+
+- **Variable selection is a priority**: Provides a clear and complete solution path showing the sequence and importance of features entering the model.
+
+- **Computational efficiency matters**: Computes the full regularization path with similar speed to a single least squares fit, $O$($k^3+pk^2$).
+
+- **Collinearity among predictors**: Effectively manages correlated predictors by moving them together, helping to identify meaningful feature groups.
+
+
+
+## When LARS is NOT Appropriate
+
+- **Non-linear relationships**:  Assumes linearity; unsuitable for data with non-linear patterns between features and the response.
+
+- **Categorical variables dominate**: Best suited for continuous predictors; extensive categorical data may not fully leverage LARS's benefits.
+
+- **Outliers are present**: Highly susceptible to outliers, which can significantly distort the regression path (consider alternatives).
+
+- **Temporal Dependencies**: Fails to capture inherent trends, seasonality, or autocorrelation present in time-series data.
+
+- **Very large sample size, few features**: Standard linear regression is often simpler and equally effective when observations heavily outweigh the number of features.
+
+
+## Main Dataset
+
+This project uses the Burke et al. (2022) global urban soil black carbon dataset, obtained from the Knowledge Network for Biocomplexity (KNB) at:
+https://knb.ecoinformatics.org/view/urn:uuid:1651eeb1-e050-4c78-8410-ec2389ca2363
+
+The dataset pulls together measurements of black carbon in urban soils from cities around the world. Each row includes details like latitude/longitude, elevation, precipitation, soil temperature at different depths, land-cover type, population info, and notes from the original studies. The main sheet (“Urban Black Carbon”) contains 600+ observations and about 65 variables, giving us a wide mix of environmental and geographic predictors.
+
+Because many of these variables move together (climate, location, soil traits, etc.), the dataset naturally has clusters of correlated features, which makes it a solid fit for demonstrating Least Angle Regression (LARS).
+
+
+
+## Data Dictionary
+
+```{r load-data, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+library(readxl)
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(kableExtra)
+
+soil_raw <- read_excel("Burke_soilBC_2022.xlsx",
+                       sheet = "Urban Black Carbon")
+```
+
+
+```{r}
+#clean col names to snake_case 
+soil <- soil_raw %>%
+  clean_names()
+
+
+soil <- soil %>%
+  mutate(across(
+      c(urban_land_use, urban_land_cover_2),
+      ~ na_if(.x, "-999")
+    )
+  )
+
+missing_tbl <- soil %>%
+  summarize(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(),
+               names_to = "variable",
+               values_to = "pct_missing") %>%
+  arrange(desc(pct_missing))
+```
+
+```{r echo=F}
+vars_keep <- missing_tbl %>%
+  filter(pct_missing < 90) %>%
+  pull(variable)
+
+soil_reduced <- soil %>% select(all_of(vars_keep))
+```
+
+
+```{r include = FALSE}
+response_var <- "bc_mg_g"
+
+predictors <- c(
+  "latitude_from_ge",
+  "longitude_from_ge",
+  "combined_elevation_masl",
+  "combined_precipitation_mm_yr",
+  "mean_annual_soil_temp_0_5_cm_c_1979_2013",
+  "mean_annual_soil_temp_5_15_cm_c_1979_2013",
+  "depth_cm",
+  "depth_range_cm"
+)
+
+soil_model <- soil_reduced %>%
+  select(all_of(c(response_var, predictors)))
+
+#complete cases
+soil_model_clean <- soil_model %>% 
+  drop_na()
+
+n_before <- nrow(soil_model)
+n_after  <- nrow(soil_model_clean)
+
+#fix depth range to numeric
+soil_model_clean <- soil_model_clean %>%
+  mutate(
+    depth_range_cm = depth_range_cm %>%
+      str_split("-", simplify = TRUE) %>%
+      apply(1, \(x) mean(as.numeric(x)))
+  )
+
+#standardize predictors
+soil_lars <- soil_model_clean %>%
+  mutate(across(all_of(predictors), scale))
+```
+
+
+
+```{r echo=FALSE}
+library(kableExtra)
+
+data_dict <- tibble(
+  variable = c(response_var, predictors),
+  description = c(
+    "Black carbon concentration (mg/g)",
+    "Latitude of sample location",
+    "Longitude of sample location",
+    "Elevation (masl)",
+    "Annual precipitation (mm/year)",
+    "Annual mean soil temperature 0–5 cm (°C, 1979–2013)",
+    "Annual mean soil temperature 5–15 cm (°C, 1979–2013)",
+    "Sampling depth (cm)",
+    "Depth range of sample (cm)"
+  ),
+  type = c("numeric", rep("numeric", length(predictors)))
+)
+
+data_dict %>%
+  kable(
+    format = "latex",
+     booktabs = TRUE,
+    caption = "Data Dictionary for Modeling Variables",
+    col.names = c("Variable", "Description", "Type")
+  ) %>%
+  kable_styling(
+    latex_options = c("hold_position")
+  )
+```
+We removed variables with 90+% missing values to avoid unstable predictors and ensure consistent sample size across all variables. This threshold preserved essential environmental predictors while excluding sparse fields that contained too little information to contribute to modeling.
+
+
+
+
+## BC vs Depth
+```{r}
+## bc vs depth
+ggplot(soil_lars, aes(x = depth_cm, y = bc_mg_g)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = FALSE, color = "steelblue") +
+  labs(
+    title = "BC Concentration vs Sampling Depth",
+    x = "Depth (cm)",
+    y = "BC (mg/g)"
+  ) +
+  theme_minimal()
+```
+
+
+
+## Takeaways
+
+- High BC values occur almost entirely near the surface (0–1 cm), reflecting strong urban deposition.
+
+- BC drops sharply with depth, flattening to low levels beyond ~4 cm.
+
+- Variance is very large at shallow depths, but nearly zero deeper in the profile.
+
+- Pattern indicates a nonlinear depth–BC relationship and potential heteroskedasticity.
+
+- Supports LARS: depth correlates with other environmental factors, and regularization helps stabilize selection in the presence of such gradients.
+
+
+
+## Predictor Correlation Heatmap 
+
+```{r}
+# correlation matrix among standardized predictors
+corr_mat <- soil_lars %>%
+  select(all_of(predictors)) %>%
+  cor()
+
+corr_df <- as_tibble(
+  expand.grid(
+    var1 = rownames(corr_mat),
+    var2 = colnames(corr_mat)
+  )
+) %>%
+  mutate(correlation = as.vector(corr_mat))
+
+ggplot(corr_df, aes(x = var1, y = var2, fill = correlation)) +
+  geom_tile() +
+  scale_fill_gradient2(limits = c(-1, 1)) +
+  coord_fixed() +
+  labs(
+    title = "Correlation Among Predictors",
+    x = NULL,
+    y = NULL,
+    fill = "r"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+
+
+## Takeaways
+
+- Strong spatial correlation between latitude and longitude.
+
+- The two soil temperature variables are highly correlated.
+
+- Elevation and precipitation follow the same environmental gradient.
+
+- Overall: clear multicollinearity clusters, meaning several predictors share similar information. This supports using LARS.
+
