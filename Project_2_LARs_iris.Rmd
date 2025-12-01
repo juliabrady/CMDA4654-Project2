@@ -1,0 +1,81 @@
+---
+title: "Project_2_Group"
+author: "Priya Bhat"
+date: "2025-12-01"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## R Markdown
+
+This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+## Slide with Bullets
+
+- Bullet 1
+- Bullet 2
+- Bullet 3
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+summary(cars)
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
+# LARs using iris dataset
+
+## Libraries and packages
+```{r}
+#install.packages("lars")
+library(lars)
+data(iris)
+
+```
+
+
+
+## Assigning values
+```{r}
+y <- iris$Sepal.Length
+
+x <- as.matrix(iris[, c("Sepal.Width", "Petal.Length", "Petal.Width")])
+
+dim(x)
+head(x)
+```
+
+
+## LARS
+```{r}
+lars_model <- lars(x, y, type = "lar")
+lars_model
+
+#plot
+plot(lars_model)
+legend("topleft", legend = colnames(x), col = 1:3, lty = 1)
+```
+
+
+## Choosing the best model
+```{r}
+set.seed(123)
+
+cv_model <- cv.lars(x, y, type = "lar")
+
+plot(cv_model$index, cv_model$cv, type = "b",
+     xlab = "Fraction of L1 norm",
+     ylab = "Cross Validation Error",
+     main = "Cross Validation for LARS")
+
+```
