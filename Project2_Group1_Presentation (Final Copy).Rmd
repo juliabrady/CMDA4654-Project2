@@ -3,9 +3,9 @@ title: "CMDA 4654 Project 2"
 author: "Julia Brady, Priya Bhat, Mason Colt, Matt Nissen, Dylan Fair, Jamal Mani"
 date: "2025-11-22"
 output:
-  ioslides_presentation:
-    highlight: kate
   slidy_presentation:
+    highlight: kate
+  ioslides_presentation:
     highlight: kate
   beamer_presentation:
     fonttheme: professionalfonts
@@ -199,6 +199,8 @@ We find the minimum $\gamma$ value among all non-active predictors, update our c
 
 6.  We will repeat this until all predictors are included in the model.
 
+This movement is **piecewise-linear** and **geometrically optimal**.
+
 
 ## Geometric Picture
 ```{r echo = FALSE}
@@ -289,30 +291,6 @@ plot_ly() %>%
     )
   )
 ```
-
-
-
-## Intuition: What LARS Does
-
-1. Start with all coefficients = 0  
-2. Find the predictor most correlated with the response  
-3. Move toward it until another predictor becomes equally correlated  
-4. Turn and move along a direction splitting the angle between them  
-5. Repeat until all predictors enter  
-
-This movement is **piecewise-linear** and **geometrically optimal**.
-
-
-## Connection to LASSO
-
-LARS becomes the LASSO algorithm by adding:
-
-> If a coefficient would cross zero, **remove** that variable from the active set.
-
-This enforces the L1 constraint.
-
-LARS + zero-crossing rule = **Exact LASSO path**
-
 
 
 ## When LARS is Appropriate
@@ -963,5 +941,4 @@ Priya:
 https://bookdown.org/yihui/rmarkdown-cookbook/figure-size.html
 https://bookdown.org/yihui/rmarkdown/ioslides-presentation.html
 https://statisticseasily.com/glossario/what-is-least-angle-regression-lars/
-
 
