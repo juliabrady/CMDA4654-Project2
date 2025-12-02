@@ -1,0 +1,82 @@
+---
+title: "Project_2_Algorithm"
+author: "Julia Brady"
+date: "2025-12-01"
+output:
+  slidy_presentation: default
+  beamer_presentation: default
+---
+
+
+## Overview
+Least angle regression is a generalization of forward selection, where a regression model begins with an empty equation and adds variables one by one in order of predictive accuracy.
+
+Initial Equation: $y = \beta_{0}$
+
+Final Equation:  $y = \beta_{0} + \beta_{1}x_1 + \beta_{2}x_2 + ... + \beta_{n}x_n$
+
+
+## Algorithm Steps
+
+1. Take the correlation of residuals with every predictor variable and find the maximum.
+2. Add the highest-correlation predictor $x_j$ to the equation with coefficient $\gamma$: $r = y- \beta_0 - \gamma_j x_j$, $y = \beta_0 + \gamma_j x_j$
+3. Increase $\gamma$ in the direction of its correlation with y (positive or negative), taking residuals along the way, until $Cor(x_j, r) = Cor(x_k, r)$ for some other predictor $x_k$.
+4. Continue moving along $(x_j, x_k)$ by increasing $(\gamma_j, \gamma_k)$ in their least squares direction, taking residuals along the way, until some predictor $x_m$ has as much correlation as the residual.
+5. Repeat this until all predictors are included in the model.
+
+## Algorithm
+1. Take the correlation of residuals with every predictor variable and find the maximum.
+
+At the beginning of the algorithm, we set our intercept $\beta_0$ equal to the average of our y-vector, denoted by $\bar y$. Residuals, then, are given by $r = y - \beta_0 = y - \bar y$
+
+We can denote the correlation of residuals with each variable as $Cor(r, \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix}) = \begin{bmatrix} c_1 \\ c_2 \\ \vdots \\ c_n \end{bmatrix}$ 
+
+Let $max \{ {\begin{bmatrix} c_1 \\ c_2 \\ \vdots \\ c_n \end{bmatrix}} \}=c_{max}$.
+
+We select the predictor $x_j$ corresponding to $c_{max}$ as our first active predictor.
+
+## Algorithm
+2. Add the highest-correlation predictor $x_j$ to the equation with coefficient $\gamma$: 
+
+$r = y- \beta_0 - \gamma_j x_j$
+
+$\gamma_j$ is a temporary step size along predictor $x_j$. We will compute its value and assign it to $\beta_j$.
+
+## Algorithm
+
+3. Increase $\gamma$ in the direction of its correlation with y (positive or negative), taking residuals along the way, until $Cor(x_j, r) = Cor(x_k, r)$ for some other predictor $x_k$.
+
+The direction of correlation is given by $u$, a unit vector equal to $x_j$. The residual vector, constantly being updated as $\gamma$ increases, is given by $r(\gamma)$.
+
+$r(\gamma) = r_0 - \gamma u$, where $r_0 = y - \bar y$.
+
+To find $\gamma_j$, consider all predictors $x_{i \ne j}$. solve 
+
+$C = Cor(x_j, r(\gamma))=Cor(x_i, r(\gamma))$, or equivalently, $|x_{j}^T r(\gamma)| = |x_{i}^T r(\gamma)|$. This will give us $(n-1)$ $\gamma$ values for $n$ predictive variables.
+
+The minimum $\gamma$ value is our $\beta_j$. The corresponding $x_i$ is the next active predictor, which we will add in the next step and denote $x_k$.
+
+Now, we have $y = \beta_0 + \beta_j x_j$.
+
+## Algorithm
+4. Continue moving along $(x_j, x_k)$ in their least squares direction, taking residuals along the way, until some predictor $x_m$ has as much correlation as the residual.
+
+Because we now have 2 predictors, our direction vector $u$ will be updated:
+
+$u = X_A (X_{A}^T X_A)^{-1}s_A$
+
+$X_A$ is a matrix of the predictors we're using so far, $[x_j, x_k]$, and $s_A$ is a vector of their correlation signs (either positive 1 or negative 1).
+
+Now, we will move $\gamma_k$ to update our fitted values and residuals:
+
+$\hat y(\gamma) = \hat y_{old} + \gamma u$
+
+$r(\gamma) = r_{old} - \gamma u$
+
+Then, for every predictor we're not already using, we solve: $|x_{m}^T r(\gamma)| = C - \gamma x_{j}^T u$. The minimum $\gamma$ value will update each of our coefficients, and the corresponding predictor $x_m$ is the next to be added.
+
+Now, we have our updated $\beta_k$, and our equation becomes $y = \beta_0 + \beta_j x_j + \beta_k x_k$.
+
+## Algorithm
+
+5. Repeat this until all predictors are included in the model.
