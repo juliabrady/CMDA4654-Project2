@@ -1,0 +1,323 @@
+---
+title: "CMDA 4654 Project 2 – Baby Dataset Model Comparison"
+author: "Dylan Fair"
+date: "2025-12-02"
+output:
+  ioslides_presentation:
+    highlight: kate
+  beamer_presentation:
+    fonttheme: professionalfonts
+    highlight: kate
+    theme: Rochester
+classoption: aspectratio=169
+fontsize: 9pt
+header-includes:
+- \definecolor{VTmaroon}{HTML}{861F41}
+- \usecolortheme[named=VTmaroon]{structure}
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(ggplot2)
+library(plotly)
+knitr::opts_chunk$set(echo = FALSE)
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  paste0("\n \\", "footnotesize","\n\n", x, "\n\n \\normalsize")
+})
+```
+
+## Comparing LARS to Other Regression Methods
+
+```{r lars_comparison_setup, include=FALSE}
+library(tidyverse)
+library(glmnet)
+library(MASS)
+library(lars)
+
+set.seed(123)
+
+mse_fun <- function(y_true, y_pred) {
+  mean((y_true - y_pred)^2)
+}
+
+# ---------------- IRIS: Predict Sepal.Length ----------------
+
+# Use only numeric predictors
+iris_df <- iris %>%
+  as_tibble() %>%
+  dplyr::select(Sepal.Length, Sepal.Width, Petal.Length, Petal.Width)
+
+# Train / test split (75/25)
+n_iris  <- nrow(iris_df)
+train_i <- sample(seq_len(n_iris), size = floor(0.75 * n_iris))
+
+iris_train <- iris_df[train_i, ]
+iris_test  <- iris_df[-train_i, ]
+
+# OLS
+ols_iris <- lm(Sepal.Length ~ ., data = iris_train)
+pred_ols_iris <- predict(ols_iris, newdata = iris_test)
+mse_ols_iris  <- mse_fun(iris_test$Sepal.Length, pred_ols_iris)
+
+# Stepwise (both directions)
+step_iris <- stepAIC(ols_iris, direction = "both", trace = FALSE)
+pred_step_iris <- predict(step_iris, newdata = iris_test)
+mse_step_iris  <- mse_fun(iris_test$Sepal.Length, pred_step_iris)
+
+# Lasso (glmnet)
+x_train_iris <- model.matrix(Sepal.Length ~ ., iris_train)[, -1]
+y_train_iris <- iris_train$Sepal.Length
+x_test_iris  <- model.matrix(Sepal.Length ~ ., iris_test)[, -1]
+y_test_iris  <- iris_test$Sepal.Length
+
+cv_lasso_iris <- cv.glmnet(
+  x = x_train_iris,
+  y = y_train_iris,
+  alpha = 1,
+  family = "gaussian"
+)
+best_lambda_iris <- cv_lasso_iris$lambda.min
+
+lasso_iris <- glmnet(
+  x = x_train_iris,
+  y = y_train_iris,
+  alpha = 1,
+  family = "gaussian",
+  lambda = best_lambda_iris
+)
+
+pred_lasso_iris <- predict(lasso_iris, newx = x_test_iris)
+mse_lasso_iris  <- mse_fun(y_test_iris, pred_lasso_iris)
+
+# LARS (Lasso path)
+lars_iris <- lars(x_train_iris, y_train_iris, type = "lasso")
+best_step_iris <- which.min(lars_iris$Cp)
+
+pred_lars_iris <- predict(
+  lars_iris,
+  newx = x_test_iris,
+  s = best_step_iris,
+  mode = "step"
+)$fit
+mse_lars_iris <- mse_fun(y_test_iris, pred_lars_iris)
+
+compare_iris <- tibble(
+  Model    = c("OLS", "Stepwise", "Lasso", "LARS"),
+  Test_MSE = c(mse_ols_iris, mse_step_iris, mse_lasso_iris, mse_lars_iris)
+)
+
+compare_iris
+
+# ---------------- MTCARS: Predict mpg ----------------
+
+
+mtcars_df <- mtcars %>%
+  as_tibble()
+
+# Train / test split (75/25)
+n_mtc  <- nrow(mtcars_df)
+train_m <- sample(seq_len(n_mtc), size = floor(0.75 * n_mtc))
+
+mtcars_train <- mtcars_df[train_m, ]
+mtcars_test  <- mtcars_df[-train_m, ]
+
+# OLS
+ols_mtcars <- lm(mpg ~ ., data = mtcars_train)
+pred_ols_mtcars <- predict(ols_mtcars, newdata = mtcars_test)
+mse_ols_mtcars  <- mse_fun(mtcars_test$mpg, pred_ols_mtcars)
+
+# Stepwise
+step_mtcars <- stepAIC(ols_mtcars, direction = "both", trace = FALSE)
+pred_step_mtcars <- predict(step_mtcars, newdata = mtcars_test)
+mse_step_mtcars  <- mse_fun(mtcars_test$mpg, pred_step_mtcars)
+
+# Lasso (glmnet)
+x_train_mtcars <- model.matrix(mpg ~ ., mtcars_train)[, -1]
+y_train_mtcars <- mtcars_train$mpg
+x_test_mtcars  <- model.matrix(mpg ~ ., mtcars_test)[, -1]
+y_test_mtcars  <- mtcars_test$mpg
+
+cv_lasso_mtcars <- cv.glmnet(
+  x = x_train_mtcars,
+  y = y_train_mtcars,
+  alpha = 1,
+  family = "gaussian"
+)
+best_lambda_mtcars <- cv_lasso_mtcars$lambda.min
+
+lasso_mtcars <- glmnet(
+  x = x_train_mtcars,
+  y = y_train_mtcars,
+  alpha = 1,
+  family = "gaussian",
+  lambda = best_lambda_mtcars
+)
+
+pred_lasso_mtcars <- predict(lasso_mtcars, newx = x_test_mtcars)
+mse_lasso_mtcars  <- mse_fun(y_test_mtcars, pred_lasso_mtcars)
+
+# LARS
+lars_mtcars <- lars(x_train_mtcars, y_train_mtcars, type = "lasso")
+best_step_mtcars <- which.min(lars_mtcars$Cp)
+
+pred_lars_mtcars <- predict(
+  lars_mtcars,
+  newx = x_test_mtcars,
+  s = best_step_mtcars,
+  mode = "step"
+)$fit
+mse_lars_mtcars <- mse_fun(y_test_mtcars, pred_lars_mtcars)
+
+compare_mtcars <- tibble(
+  Model    = c("OLS", "Stepwise", "Lasso", "LARS"),
+  Test_MSE = c(mse_ols_mtcars, mse_step_mtcars,
+               mse_lasso_mtcars, mse_lars_mtcars)
+)
+```
+
+## Iris: LARS vs Other Regression Methods
+
+We predict **Sepal.Length** from the three other numeric iris variables and compare four models:
+
+- OLS Test MSE: `r round(mse_ols_iris, 3)`
+- Stepwise Test MSE: `r round(mse_step_iris, 3)`
+- Lasso Test MSE: `r round(mse_lasso_iris, 3)`
+- LARS Test MSE: `r round(mse_lars_iris, 3)`
+
+**Interpretation:**
+
+- All four models have very similar test error because iris is small and low-dimensional.
+- Lasso achieves the lowest MSE due to coefficient shrinkage (slightly reducing variance).
+- LARS nearly matches Lasso’s performance because its solution path closely approximates the Lasso path.
+- Stepwise and OLS perform similarly since most predictors are genuinely informative.
+
+```{r iris_table, echo=FALSE}
+knitr::kable(compare_iris, digits = 3)
+```
+
+## Iris: Lasso Cross-Validation Curve
+
+Lasso selects its penalty parameter λ using cross-validation.
+
+- Small λ → more flexible model
+- Large λ → stronger shrinkage
+- The dashed vertical line marks the λ minimizing CV error
+
+```{r iris_lasso_cv, echo=FALSE, fig.width=6, fig.height=4}
+oldpar <- par(no.readonly = TRUE)
+
+par(mar = c(6, 4, 3, 1), cex.lab = 0.9, cex.axis = 0.9)
+
+x   <- -log(cv_lasso_iris$lambda)
+y   <- cv_lasso_iris$cvm
+se  <- cv_lasso_iris$cvsd
+x_min <- -log(cv_lasso_iris$lambda.min)
+
+# Base plot
+plot(
+  x, y,
+  type = "n",
+  xlab = expression(-log(lambda)),
+  ylab = "Mean-Squared Error",
+  main = "Iris: Lasso CV Curve"
+)
+
+arrows(
+  x0 = x, y0 = y - se,
+  x1 = x, y1 = y + se,
+  angle = 90, code = 3, length = 0.02,
+  col = "lightgray"
+)
+
+lines(x, y, col = "gray40")
+points(x, y, pch = 16, col = "red", cex = 0.6)
+
+abline(v = x_min, lty = 2)
+
+par(oldpar)
+
+```
+
+
+
+## Iris: LARS Coefficient Paths
+
+The LARS coefficient path shows:
+
+- The order predictors enter the model
+- How quickly coefficients grow
+- The piecewise-linear nature of the LARS solution
+
+```{r iris_lars_path, echo=FALSE, fig.width=6, fig.height=4}
+oldpar <- par(no.readonly = TRUE)
+
+par(mar = c(6, 4, 3, 1),
+    cex.lab  = 0.9,
+    cex.axis = 0.9,
+    cex.main = 1)
+
+
+beta_mat <- lars_iris$beta
+steps    <- seq_len(nrow(beta_mat))
+
+cols <- c("red", "black", "darkgreen")
+
+matplot(
+  steps, beta_mat,
+  type = "l",
+  lty  = 1,
+  col  = cols,
+  xlab = "Step in LARS path",
+  ylab = "Standardized Coefficients",
+  main = "Iris: LARS Coefficient Paths"
+)
+
+abline(h = 0, lty = 3)
+
+legend(
+  "topleft",
+  legend = colnames(beta_mat),  
+  col    = cols,
+  lty    = 1,
+  bty    = "n",
+  cex    = 0.8
+)
+
+par(oldpar)
+
+
+```
+
+
+## mtcars: LARS vs Other Regression Methods
+
+We predict **mpg** in the mtcars dataset using all other variables:
+
+- OLS Test MSE: `r signif(mse_ols_mtcars, 3)`
+- Stepwise Test MSE: `r signif(mse_step_mtcars, 3)`
+- Lasso Test MSE: `r signif(mse_lasso_mtcars, 3)`
+- LARS Test MSE: `r signif(mse_lars_mtcars, 3)`
+
+**Interpretation:**
+
+- mtcars is extremely small (32 rows), so each train/test split is noisy.
+- All four models have almost identical MSE on this split.
+- Lasso and LARS again behave very similarly in terms of prediction.
+- With such a tiny dataset, shrinkage and selection provide limited gains over OLS, but they illustrate the methods’ behavior.
+
+```{r mtcars_table, echo=FALSE}
+knitr::kable(compare_mtcars, digits = 4)
+```
+
+## Takeaways from Baby Datasets
+
+- On simple, low-dimensional datasets, all four models achieve very similar performance.
+- Lasso and LARS consistently match or slightly beat OLS and Stepwise.
+- LARS is especially appealing when:
+  - the number of predictors is large,
+  - predictors are correlated,
+  - and we care about the full coefficient path for interpretation.
+- These baby examples confirm that LARS behaves like Lasso in terms of predictive accuracy, while providing an efficient and interpretable solution path.
