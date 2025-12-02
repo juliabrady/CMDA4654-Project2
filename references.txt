@@ -2,3 +2,8 @@ Julia:
 https://en.wikipedia.org/wiki/Least-angle_regression
 https://www.geeksforgeeks.org/machine-learning/least-angle-regression-lars/
 https://tibshirani.su.domains/ftp/lars.pdf
+
+Matt:
+https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-2/Least-angle-regression/10.1214/009053604000000067.full
+https://link.springer.com/article/10.1007/s41237-024-00237-2
+Lucero, Christian. “Model Selection.” CMDA-4654: Intermediate Machine Learning & Data Analytics, Lecture 15, Virginia Tech, Fall 2025.
