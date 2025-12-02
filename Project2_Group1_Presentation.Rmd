@@ -260,6 +260,16 @@ LARS + zero-crossing rule = **Exact LASSO path**
 - **Collinearity among predictors**: Effectively manages correlated predictors by moving them together, helping to identify meaningful feature groups.
 
 
+## Real-World Examples: LARS is Appropriate
+
+- **Genomics**: Gene expression analysis with thousands of genes but few samples ($p >> n$).
+
+- **Financial modeling**: Portfolio optimization with hundreds of assets and economic indicators.
+
+- **Medical imaging**: Disease prediction from high-dimensional MRI/CT features with limited patient data.
+
+- **Marketing analytics**: Customer behavior modeling with many potential predictors (demographics, interactions, preferences).
+
 
 ## When LARS is NOT Appropriate
 
@@ -272,6 +282,15 @@ LARS + zero-crossing rule = **Exact LASSO path**
 - **Temporal Dependencies**: Fails to capture inherent trends, seasonality, or autocorrelation present in time-series data.
 
 - **Very large sample size, few features**: Standard linear regression is often simpler and equally effective when observations heavily outweigh the number of features.
+
+
+## Real-World Examples: LARS is NOT Appropriate
+
+- **Image recognition**: Deep non-linear relationships between pixels and object classes.
+
+- **Stock price prediction**: Time-series with autocorrelation, trends, and temporal dependencies.
+- **Survey data with outliers**: Data quality issues where extreme responses distort the model.
+- **Simple A/B testing**: Few variables with large sample sizes where standard regression suffices.
 
 
 ## Main Dataset
