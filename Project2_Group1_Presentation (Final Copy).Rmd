@@ -23,6 +23,9 @@ library(knitr)
 library(ggplot2)
 library(plotly)
 library(lars)
+library(tibble)
+library(knitr)
+library(kableExtra)
 knitr::opts_chunk$set(echo = FALSE)
 
 def.chunk.hook  <- knitr::knit_hooks$get("chunk")
@@ -925,19 +928,145 @@ ggplot(corr_df, aes(x = var1, y = var2, fill = correlation)) +
 
 - Overall: clear multicollinearity clusters, meaning several predictors share similar information. This supports using LARS.
 
-## References
 
-Julia:
+
+## LARS on Large Data
+```{r echo = FALSE}
+set.seed(123)
+
+## Response + predictors
+y_full <- soil_lars$bc_mg_g
+X_full <- soil_lars %>% dplyr::select(-bc_mg_g)
+
+n <- nrow(X_full)
+train_idx <- sample(n, size = floor(0.75 * n))
+
+## Train/test split
+## 75/25 split
+y_train <- y_full[train_idx]
+y_test <- y_full[-train_idx]
+
+X_train_raw <- X_full[train_idx, ]
+X_test_raw <- X_full[-train_idx, ]
+
+## Standardize using training statistics only
+means <- apply(X_train_raw, 2, mean)
+sds <- apply(X_train_raw, 2, sd)
+
+X_train <- scale(X_train_raw, center = means, scale = sds)
+X_test <- scale(X_test_raw, center = means, scale = sds)
+
+X_train <- as.matrix(X_train)
+X_test <- as.matrix(X_test)
+
+## Fit LARS (lasso path)
+lars_soil <- lars(X_train, y_train, type = "lasso")
+
+## Choose optimal step using Mallow's Cp
+# The step with the min Cp balances bias and variance
+best_step <- which.min(lars_soil$Cp)
+
+## Test predictions
+soil_pred_test <- predict(lars_soil, newx = X_test, s = best_step, mode = "step")$fit
+
+mse_lars_soil <- mean((soil_pred_test - y_test)^2)
+
+# Create a small table for the slide showing LARS test performance
+lars_results <- tibble(Model = "LARS (Cp-selected)", Test_MSE = mse_lars_soil)
+
+```
+
+```{r echo = FALSE}
+lars_results %>% kable(format = "html", 
+                       caption = "Test-Set Performance of the LARS Model", 
+                       align = "cc") %>%
+kable_styling(full_width = FALSE)
+```
+
+*Note:  On held-out soil samples, the model’s predictions differ from the observed black carbon values by about 12.4 mg/g on average*
+
+This level of error is expected for this dataset, because black carbon concentrations are extremely variable near the soil surface.
+
+## LARS Coefficient Path
+The coefficient path illustrates:
+
+- the order in which predictors enter the model
+
+- the strength of their standardized effects
+
+- and how the LARS moves piecewise-linearly through predictor space
+
+```{r echo = FALSE}
+# -------------------------------------------------------------------
+# 17. Extract standardized coefficient paths across LARS steps.
+# -------------------------------------------------------------------
+beta_mat <- lars_soil$beta # rows = steps, cols = predictors
+steps <- seq_len(nrow(beta_mat)) # step index along the path
+
+# Color palette (length must match number of predictors)
+cols <- RColorBrewer::brewer.pal(
+  n   = ncol(beta_mat),
+  name = "Dark2"
+)
+
+oldpar <- par(no.readonly = TRUE)
+
+par(mar = c(5, 4, 3, 1), cex.lab = 0.9, cex.axis = 0.9, cex.main = 1)
+
+# Plot standardized coefficients vs. step number
+# This visualizes:
+# - the order predictors enter the model
+# - how large (or small) their effects become
+# - where the Cp-selected step lies on the path
+matplot(
+  x = steps, y = beta_mat, type = "l", lty = 1, col  = cols,
+  xlab = "Step in LARS path",
+  ylab = "Standardized Coefficients",
+  main = "Soil Black Carbon: LARS Coefficient Paths"
+)
+
+abline(h = 0, lty = 3, col = "gray70") # zero baseline
+abline(v = best_step, lty = 2, col = "gray40") # Cp-selected step
+
+legend("topleft", legend = colnames(beta_mat),
+  col = cols, lty = 1, bty = "n", cex = 0.7)
+
+par(oldpar)
+```
+
+## Interpretation
+
+- Depth variables are the first to enter the model, with `depth_range_cm` entering immediately and taking on a large negative coefficient.
+This confirms that black carbon decreases strongly with depth range, consistent with the earlier exploratory plots.
+
+
+- Latitude and elevation enter early as well, both with strong positive standardized coefficients.
+This indicates that locations at higher latitudes and higher elevations tend to have higher black carbon values, after adjusting for depth.
+
+
+- Climate variables (precipitation and soil temperatures) enter in the middle of the path with moderate positive effects.
+Their smoother, slower coefficient growth reflects their weaker marginal relationship after the major depth and geographic patterns are accounted for.
+
+
+## Interpretation
+
+- Longitude shows a small negative effect, entering later and remaining relatively flat.
+This suggests that east-west location explains little additional variation once depth, latitude, and elevation are included.
+
+
+- The dashed vertical line marks the Cp-selected step, which represents the best balance between model complexity and predictive accuracy.
+Beyond this point, adding additional predictors primarily increases variance without improving model fit.
+
+
+- Overall, LARS highlights a small set of dominant predictors (depth range, latitude, and elevation) while shrinking or delaying weaker, highly correlated variables, giving a clear picture of the main environmental drivers of black carbon.
+
+## References
+Lucero, Christian. “Model Selection.” CMDA-4654: Intermediate Machine Learning & Data Analytics, Lecture 15, Virginia Tech, Fall 2025.
 https://en.wikipedia.org/wiki/Least-angle_regression
 https://www.geeksforgeeks.org/machine-learning/least-angle-regression-lars/
 https://tibshirani.su.domains/ftp/lars.pdf
-
-Matt:
 https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-2/Least-angle-regression/10.1214/009053604000000067.full
 https://link.springer.com/article/10.1007/s41237-024-00237-2
-Lucero, Christian. “Model Selection.” CMDA-4654: Intermediate Machine Learning & Data Analytics, Lecture 15, Virginia Tech, Fall 2025.
-
-Priya:
 https://bookdown.org/yihui/rmarkdown-cookbook/figure-size.html
 https://bookdown.org/yihui/rmarkdown/ioslides-presentation.html
 https://statisticseasily.com/glossario/what-is-least-angle-regression-lars/
