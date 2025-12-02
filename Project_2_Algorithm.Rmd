@@ -7,16 +7,9 @@ output:
   beamer_presentation: default
 ---
 
-
-## Overview
-Least angle regression is a generalization of forward selection, where a regression model begins with an empty equation and adds variables one by one in order of predictive accuracy.
-
-Initial Equation: $y = \beta_{0}$
-
-Final Equation:  $y = \beta_{0} + \beta_{1}x_1 + \beta_{2}x_2 + ... + \beta_{n}x_n$
-
-
 ## Algorithm Steps
+Initial Equation: $y = \beta_{0}$
+Final Equation:  $y = \beta_{0} + \beta_{1}x_1 + \beta_{2}x_2 + ... + \beta_{n}x_n$
 
 1. Take the correlation of residuals with every predictor variable and find the maximum.
 2. Add the highest-correlation predictor $x_j$ to the equation with coefficient $\gamma$: $r = y- \beta_0 - \gamma_j x_j$, $y = \beta_0 + \gamma_j x_j$
