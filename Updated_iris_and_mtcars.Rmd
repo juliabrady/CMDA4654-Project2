@@ -1,0 +1,113 @@
+---
+title: "Project_2_Group"
+author: "Priya Bhat"
+date: "2025-12-01"
+#output: beamer_presentation
+fontsize: 9pt
+classoption: "aspectratio=169"
+output:
+  beamer_presentation: 
+    fonttheme: professionalfonts
+    highlight: kate
+    theme: Rochester
+header-includes:
+- \definecolor{VTmaroon}{HTML}{861F41}
+- \usecolortheme[named=VTmaroon]{structure}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r echo = FALSE}
+#install.packages("lars")
+library(lars)
+data(iris)
+
+```
+
+
+## LARS using iris Dataset
+
+LARS requires us to have:
+
+- a numeric vector for the response (y)
+- a matrix of predictor variables (x)
+
+```{r echo = TRUE}
+y <- iris$Sepal.Length
+x <- as.matrix(iris[, c("Sepal.Width", "Petal.Length", "Petal.Width")])
+
+```
+
+
+```{r echo = FALSE}
+lars_model <- lars(x, y, type = "lar")
+```
+
+## Model Summary
+```{r}
+lars_model
+```
+
+
+## iris LARS Plot
+
+We can see that **Petal.Length** has the strongest correlation with Sepal.Length. **Sepal.Width** has the 2nd strongest correlation, and **Petal.Width** is the least correlated.
+```{r}
+plot(lars_model)
+legend("topleft", legend = colnames(x), col = 1:3, lty = 1)
+```
+
+```{r echo = FALSE}
+data(mtcars)
+
+head(mtcars)
+
+
+```
+
+
+```{r echo = FALSE}
+y_val <- mtcars$mpg
+x_val <- as.matrix(mtcars[, -1])
+
+#lars model
+lars_model_mt <- lars(x_val, y_val, type = "lar")
+
+```
+
+## LARS using mtcars Dataset
+
+In this model, we are looking to predict fuel efficiency:
+
+- Miles per Gallon (mpg) as our response variable (y)
+- Matrix of all predictor variables (x)
+```{r}
+head(mtcars)
+```
+
+## Model Summary
+
+```{r}
+summary(lars_model_mt)
+```
+
+
+## mtcars LARS Plot
+
+Here we see that **wt** and **cyl** enter the model first, meaning they are more strongly correlated to **mpg** than other variables such as **disp** and **qsec**. 
+```{r}
+plot(lars_model_mt)
+legend("bottomleft", legend = colnames(x_val), col = 1:10, lty = 1, pch = 16, cex = 0.70)
+```
+
+## Key Findings
+
+- Through these two examples, we can see that LARS makes it very easy to identify which variables have the most influence over our response variable.
+
+- It shows us how important each predictor is, while also showing us where each variable enters model.
+
+- LARS also adds variables into the model in a balanced way without over fitting.
+
